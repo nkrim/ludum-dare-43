@@ -39,14 +39,14 @@ public class Face : MonoBehaviour {
             indices.Add(-1);
         }
     }
-	
-	
+
+
     /* MAIN MODIFYING FUNCTIONS */
     public void SetHead (GameObject head_prefab, int index) {
         if (index >= 0)
            indices[(int)Feature.Head] = index;
         GameObject head = Instantiate(head_prefab);
-        head.transform.parent = transform;
+        head.transform.SetParent(transform, false);
         // If a head already exists, prepare for swap
         if (head_sr != null) {
             // Get current properties

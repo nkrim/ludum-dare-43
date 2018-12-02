@@ -15,25 +15,25 @@ public class RandomFaceGenerator : MonoBehaviour {
 
 
     // TESTING VARS
-    float time_per_change = 0.5f;
-    float time_since_change = 0;
-    Face cur_face;
+    //float time_per_change = 0.5f;
+    //float time_since_change = 0;
+    //face cur_face;
 
     /* LIFECYCLE METHODS */
     private void Start () {
-        cur_face = GenerateRandomFace();
-        cur_face.DebugIndices();
+        //cur_face = GenerateRandomFace();
+        //cur_face.DebugIndices();
     }
 
     private void Update () {
-        time_since_change += Time.deltaTime;
-        if(time_since_change >= time_per_change) {
-            time_since_change = 0;
-            Face next_face = GenerateRandomFaceFromParent(cur_face);
-            DestroyImmediate(cur_face.gameObject);
-            cur_face = next_face;
-            cur_face.DebugIndices();
-        }
+        //time_since_change += Time.deltaTime;
+        //if(time_since_change >= time_per_change) {
+        //    time_since_change = 0;
+        //    Face next_face = GenerateRandomFaceFromParent(cur_face);
+        //    DestroyImmediate(cur_face.gameObject);
+        //    cur_face = next_face;
+        //    cur_face.DebugIndices();
+        //}
     }
 
 
