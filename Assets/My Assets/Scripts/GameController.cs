@@ -67,14 +67,14 @@ public class GameController : MonoBehaviour {
                 hovering = true;
                 if (hitBody != hover_body) {
                     if (hover_body)
-                        hover_body.SetSpotlightActive(false);
+                        hover_body.SetFocusState(false);
                     hover_body = hitBody;
-                    hover_body.SetSpotlightActive(true);
+                    hover_body.SetFocusState(true);
                 }
             }
         }
         if (!hovering && hover_body) {
-            hover_body.SetSpotlightActive(false);
+            hover_body.SetFocusState(false);
             hover_body = null;
         }
         // Raycast Child Selection
@@ -123,7 +123,7 @@ public class GameController : MonoBehaviour {
     void SelectChild (Body child) {
         // REMOVE HOVERING BEFORE MODIFYING ANYTHING
         if (hover_body) {
-            hover_body.SetSpotlightActive(false);
+            hover_body.SetFocusState(false);
             hover_body = null;
         }
 
@@ -194,7 +194,7 @@ public class GameController : MonoBehaviour {
         original_body = null;
         cur_body = null;
         if (hover_body) {
-            hover_body.SetSpotlightActive(false);
+            hover_body.SetFocusState(false);
             hover_body = null;
         }
         // Reset UI

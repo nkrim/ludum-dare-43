@@ -5,18 +5,24 @@ using UnityEngine;
 public class RandomFaceGenerator : MonoBehaviour {
 
     /* VARIABLES AND PROPERTIES */
-    // Features Lists
+    // Generator Options
+    [Header("Generator Options")]
+    public float shrinkChance = 0.25f;
+    // Blank Prefabs
     [Header("Blank Prefabs")]
     public Face blankFace;
     public Body blankBody;
+    // Body Feature Lists
     [Header("Body Generator Options")]
     public List<Color> shirtColors;
+    // Face Features Lists
     [Header("Face Generator Options")]
     public List<GameObject> heads;
+    public List<Color> skins;
     public List<Sprite> ears;
     public List<Sprite> eyes;
     public List<Sprite> noses;
-    public List<Color> skins;
+    public List<Sprite> mouths;
 
 
     // TESTING VARS
@@ -68,6 +74,7 @@ public class RandomFaceGenerator : MonoBehaviour {
         int ear_index = GetRandomIndexFromList<Sprite>(ears);
         int eye_index = GetRandomIndexFromList<Sprite>(eyes);
         int nose_index = GetRandomIndexFromList<Sprite>(noses);
+        int mouth_index = GetRandomIndexFromList<Sprite>(mouths);
 
         // Create new head from prefab
         Face face = Instantiate<Face>(blankFace);
@@ -77,6 +84,16 @@ public class RandomFaceGenerator : MonoBehaviour {
         face.SetEars(ears[ear_index], ear_index);
         face.SetEyes(eyes[eye_index], eye_index);
         face.SetNose(noses[nose_index], nose_index);
+        face.SetMouth(mouths[mouth_index], mouth_index);
+        // Set random sizes on shrinkable features
+        if (Random.value < 0.5)
+            face.ToggleFeatureShrinkage(Face.Feature.Ears);
+        if (Random.value < 0.5)
+            face.ToggleFeatureShrinkage(Face.Feature.Eyes);
+        if (Random.value < 0.5)
+            face.ToggleFeatureShrinkage(Face.Feature.Nose);
+        if (Random.value < 0.5)
+            face.ToggleFeatureShrinkage(Face.Feature.Mouth);
 
         // Return finished head
         return face;
@@ -88,39 +105,52 @@ public class RandomFaceGenerator : MonoBehaviour {
 
         Face face = parent.Clone();
         List<Face.Feature> features = Face.BuildFeatureList();
+        List<Face.Feature> shrinkableFeatures = Face.BuildShrinkableFeatureList();
         // Loop for num_differences times to change a different facial feature
         for(int i=0; i<num_differences; i++) {
             Face.Feature f = GetAndRemoveRandomItemFromList<Face.Feature>(features);
-            switch (f) {
+            // Perform shrinkage if randomness calls for it
+            if (Face.IsShrinkableFeature(f) && shrinkableFeatures.Contains(f) && Random.value <= shrinkChance) {
+                features.Add(f); // Re-add feature so it may be changed again
+                shrinkableFeatures.Remove(f); // Remove feature so it can't be toggled again
+                face.ToggleFeatureShrinkage(f);
+            }
+            else {
+                switch (f) {
+                    case Face.Feature.Head:
+                        int head_index = GetRandomIndexFromList<GameObject>(heads, face.GetIndexOf(Face.Feature.Head));
+                        face.SetHead(heads[head_index], head_index);
+                        break;
 
-                case Face.Feature.Head:
-                    int head_index = GetRandomIndexFromList<GameObject>(heads, face.GetIndexOf(Face.Feature.Head));
-                    face.SetHead(heads[head_index], head_index);
-                    break;
+                    case Face.Feature.Skin:
+                        int skin_index = GetRandomIndexFromList<Color>(skins, face.GetIndexOf(Face.Feature.Skin));
+                        face.SetSkin(skins[skin_index], skin_index);
+                        break;
 
-                case Face.Feature.Skin:
-                    int skin_index = GetRandomIndexFromList<Color>(skins, face.GetIndexOf(Face.Feature.Skin));
-                    face.SetSkin(skins[skin_index], skin_index);
-                    break;
+                    case Face.Feature.Ears:
+                        int ear_index = GetRandomIndexFromList<Sprite>(ears, face.GetIndexOf(Face.Feature.Ears));
+                        face.SetEars(ears[ear_index], ear_index);
+                        break;
 
-                case Face.Feature.Ears:
-                    int ear_index = GetRandomIndexFromList<Sprite>(ears, face.GetIndexOf(Face.Feature.Ears));
-                    face.SetEars(ears[ear_index], ear_index);
-                    break;
+                    case Face.Feature.Eyes:
+                        int eye_index = GetRandomIndexFromList<Sprite>(eyes, face.GetIndexOf(Face.Feature.Eyes));
+                        face.SetEyes(eyes[eye_index], eye_index);
+                        break;
 
-                case Face.Feature.Eyes:
-                    int eye_index = GetRandomIndexFromList<Sprite>(eyes, face.GetIndexOf(Face.Feature.Eyes));
-                    face.SetEyes(eyes[eye_index], eye_index);
-                    break;
+                    case Face.Feature.Nose:
+                        int nose_index = GetRandomIndexFromList<Sprite>(noses, face.GetIndexOf(Face.Feature.Nose));
+                        face.SetNose(noses[nose_index], nose_index);
+                        break;
 
-                case Face.Feature.Nose:
-                    int nose_index = GetRandomIndexFromList<Sprite>(noses, face.GetIndexOf(Face.Feature.Nose));
-                    face.SetNose(noses[nose_index], nose_index);
-                    break;
+                    case Face.Feature.Mouth:
+                        int mouth_index = GetRandomIndexFromList<Sprite>(mouths, face.GetIndexOf(Face.Feature.Mouth));
+                        face.SetMouth(mouths[mouth_index], mouth_index);
+                        break;
 
-                default:
-                    Debug.LogError("Missing case for certain Feature in GenerateRandomFaceFromParent!");
-                    break;
+                    default:
+                        Debug.LogError("Missing case for certain Feature in GenerateRandomFaceFromParent!");
+                        break;
+                }
             }
         }
         return face;

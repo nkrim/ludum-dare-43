@@ -21,6 +21,9 @@ public class Body : MonoBehaviour {
     /* LINKING REFERENCE VARS */
     GameObject spotlight;
 
+    /* FOCUS EFFECT VARIABLES */
+    public static readonly float focus_zoom = 1.25f;
+
 
     /* LIFECYCLE METHODS */
     private void Awake () {
@@ -29,8 +32,9 @@ public class Body : MonoBehaviour {
 
 
     /* VISUAL EFFECTS */
-    public void SetSpotlightActive (bool active) {
+    public void SetFocusState (bool active) {
         spotlight.SetActive(active);
+        transform.localScale = active ? new Vector3(focus_zoom, focus_zoom, 1) : new Vector3(1,1,1);
     }
 
 

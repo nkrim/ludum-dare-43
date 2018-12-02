@@ -6,8 +6,18 @@ public class Face : MonoBehaviour {
 
     // Feature list
     public enum Feature {
-        Head=0, Skin, Ears, Eyes, Nose
+        Head=0, Skin, Ears, Eyes, Nose, Mouth
     }
+    // Shrinkable Feature List and settings
+    public enum ShrinkableFeature {
+        NonShrinkable=-1, Ears=0, Eyes, Nose, Mouth
+    }
+    public static readonly float[] ShrunkFeatureScales = new float[] {
+        0.5f, // Ears
+        0.5f, // Eyes
+        0.5f, // Nose
+        0.5f, // Mouth
+    };
 
     /* VARIABLES AND PROPERTIES */
     // References to sprite renderers
@@ -17,6 +27,7 @@ public class Face : MonoBehaviour {
     SpriteRenderer eye_l_sr;
     SpriteRenderer eye_r_sr;
     SpriteRenderer nose_sr;
+    SpriteRenderer mouth_sr;
 
     // Feature name paths
     public static readonly string EarLeftName = "ear-left";
@@ -24,9 +35,12 @@ public class Face : MonoBehaviour {
     public static readonly string EyeLeftName = "eye-left";
     public static readonly string EyeRightName = "eye-right";
     public static readonly string NoseName = "nose";
+    public static readonly string MouthName = "mouth";
 
     // Indices of features
     protected List<int> indices;
+    // Shrink states of shrinkable features
+    protected List<bool> shrunkFeatures;
 
 
     /* LIFECYCLE METHODS */
@@ -37,6 +51,12 @@ public class Face : MonoBehaviour {
         int length = NumFeatures();
         for(int i=0; i<length; i++) {
             indices.Add(-1);
+        }
+        // Init shrunkFeatures
+        shrunkFeatures = new List<bool>();
+        length = EnumCount(typeof(ShrinkableFeature));
+        for(int i=0; i<length; i++) {
+            shrunkFeatures.Add(false);
         }
     }
 
@@ -54,6 +74,7 @@ public class Face : MonoBehaviour {
             Sprite ear = ear_l_sr.sprite;
             Sprite eye = eye_l_sr.sprite;
             Sprite nose = nose_sr.sprite;
+            Sprite mouth = mouth_sr.sprite;
             // Destroy old head and reset references
             DestroyImmediate(head_sr.gameObject);
             FindSpriteRendererReferences();
@@ -62,6 +83,7 @@ public class Face : MonoBehaviour {
             SetEars(ear, -1);
             SetEyes(eye, -1);
             SetNose(nose, -1);
+            SetMouth(mouth, -1);
         }
         else
             FindSpriteRendererReferences();
@@ -89,6 +111,71 @@ public class Face : MonoBehaviour {
         if (index >= 0)
             indices[(int)Feature.Nose] = index;
         nose_sr.sprite = nose;
+    }
+    public void SetMouth (Sprite mouth, int index) {
+        if (index >= 0)
+            indices[(int)Feature.Mouth] = index;
+        mouth_sr.sprite = mouth;
+    }
+    public void ToggleFeatureShrinkage (Feature f) {
+        // Get transforms of features to toggle
+        ShrinkableFeature sf = FeatureToShrinkable(f);
+        Transform feature_t = null;
+        Transform feature_t2 = null;
+        switch (sf) {
+            case ShrinkableFeature.Ears:
+                feature_t = ear_l_sr.transform;
+                feature_t2 = ear_r_sr.transform;
+                break;
+            case ShrinkableFeature.Eyes:
+                feature_t = eye_l_sr.transform;
+                feature_t2 = eye_r_sr.transform;
+                break;
+            case ShrinkableFeature.Nose:
+                feature_t = nose_sr.transform;
+                break;
+            case ShrinkableFeature.Mouth:
+                feature_t = mouth_sr.transform;
+                break;
+            default:
+                Debug.LogError("Tried to shrink NonShrinkable feature " + f);
+                return;
+        }
+        // Toggle feature size
+        bool currentlyShrunk = shrunkFeatures[(int)sf];
+        if (currentlyShrunk) {
+            feature_t.localScale = new Vector3(1, 1, 1);
+            if (feature_t2)
+                feature_t2.localScale = new Vector3(1, 1, 1);
+        }
+        else {
+            float scaleFactor = ShrunkFeatureScales[(int)sf];
+            feature_t.localScale = new Vector3(scaleFactor, scaleFactor, 1);
+            if (feature_t2)
+                feature_t2.localScale = new Vector3(scaleFactor, scaleFactor, 1);
+        }
+        // Adjust shrunkFeatures value
+        shrunkFeatures[(int)sf] = !currentlyShrunk;
+    }
+
+
+    /* SHRINKABLE HELPERS */
+    public static ShrinkableFeature FeatureToShrinkable (Feature f) {
+        switch (f) {
+            case Feature.Ears:
+                return ShrinkableFeature.Ears;
+            case Feature.Eyes:
+                return ShrinkableFeature.Eyes;
+            case Feature.Nose:
+                return ShrinkableFeature.Nose;
+            case Feature.Mouth:
+                return ShrinkableFeature.Mouth;
+            default:
+                return ShrinkableFeature.NonShrinkable;
+        }
+    }
+    public static bool IsShrinkableFeature (Feature f) {
+        return FeatureToShrinkable(f) >= 0;
     }
 
 
@@ -125,12 +212,16 @@ public class Face : MonoBehaviour {
         eye_l_sr = head_sr.transform.Find(EyeLeftName).GetComponent<SpriteRenderer>();
         eye_r_sr = head_sr.transform.Find(EyeRightName).GetComponent<SpriteRenderer>();
         nose_sr = head_sr.transform.Find(NoseName).GetComponent<SpriteRenderer>();
+        mouth_sr = head_sr.transform.Find(MouthName).GetComponent<SpriteRenderer>();
     }
 
 
     /* STATIC HELPER METHODS */
+    public static int EnumCount (System.Type enumType) {
+        return System.Enum.GetNames(enumType).Length;
+    }
     public static int NumFeatures () {
-        return System.Enum.GetNames(typeof(Feature)).Length;
+        return EnumCount(typeof(Feature));
     }
     public static List<Feature> BuildFeatureList () {
         System.Array arr = System.Enum.GetValues(typeof(Feature));
@@ -140,4 +231,14 @@ public class Face : MonoBehaviour {
         }
         return list;
     }
+    public static List<Feature> BuildShrinkableFeatureList () {
+        List<Feature> list = BuildFeatureList();
+        for(int i=0; i<list.Count; i++) {
+            if (!IsShrinkableFeature(list[i])) {
+                list.RemoveAt(i);
+                i--;
+            }
+        }
+        return list;
+    } 
 }
