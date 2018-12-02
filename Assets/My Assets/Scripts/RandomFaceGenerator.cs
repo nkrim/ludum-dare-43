@@ -6,7 +6,12 @@ public class RandomFaceGenerator : MonoBehaviour {
 
     /* VARIABLES AND PROPERTIES */
     // Features Lists
+    [Header("Blank Prefabs")]
     public Face blankFace;
+    public Body blankBody;
+    [Header("Body Generator Options")]
+    public List<Color> shirtColors;
+    [Header("Face Generator Options")]
     public List<GameObject> heads;
     public List<Sprite> ears;
     public List<Sprite> eyes;
@@ -34,6 +39,23 @@ public class RandomFaceGenerator : MonoBehaviour {
         //    cur_face = next_face;
         //    cur_face.DebugIndices();
         //}
+    }
+
+
+    /* BODY-CENTRIC WRAPPERS FOR MAIN FUNCTIONS */
+    public Body GenerateRandomBody () {
+        Face face = GenerateRandomFace();
+        Body body = Instantiate(blankBody);
+        face.transform.SetParent(body.transform, false);
+        body.shirtColor = GetRandomItemFromList<Color>(shirtColors);
+        return body;
+    }
+    public Body GenerateRandomBodyFromParent (Body parent) {
+        Face face = GenerateRandomFaceFromParent(parent.GetFace());
+        Body body = Instantiate(blankBody);
+        face.transform.SetParent(body.transform, false);
+        body.shirtColor = parent.shirtColor;
+        return body;
     }
 
 

@@ -24,13 +24,14 @@ public class GameController : MonoBehaviour {
     public static readonly string LineupWrapperName = "lineup-wrapper";
 
     /* INPUT STATE VARS */
-    Face mouseDownTarget;
+    Body mouseDownTarget;
 
     /* GAME STATE VARS */
     bool game_active = false;
     int generation = 0;
-    Face original_face;
-    Face cur_face;
+    Body original_body;
+    Body cur_body;
+    Body hover_body;
 
     /* PERSISTENT GAME STATE VARS */
     int highScore = 0;
@@ -56,65 +57,90 @@ public class GameController : MonoBehaviour {
         if (!game_active)
             return;
         /* INPUT HANDLING */
-        // Raycast Child Selection
-        if (mouseDownTarget != null && Input.GetMouseButtonUp(0)) {
-            Vector2 clickPoint = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-            RaycastHit2D hit = Physics2D.Raycast(clickPoint, Vector2.zero, Mathf.Infinity, LayerMask.NameToLayer("lineup"));
-            if (hit.transform != null) {
-                if (mouseDownTarget == hit.transform.GetComponentInParent<Face>()) {
-                    SelectChild(mouseDownTarget);
+        Vector2 clickPoint = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+        RaycastHit2D hitLineupBody = Physics2D.Raycast(clickPoint, Vector2.zero, Mathf.Infinity, LayerMask.NameToLayer("lineup"));
+        // Raycast hover focus
+        bool hovering = false;
+        if (hitLineupBody.transform) {
+            Body hitBody = GetBody(hitLineupBody.transform);
+            if (hitBody && hitBody != cur_body && hitBody != original_body) {
+                hovering = true;
+                if (hitBody != hover_body) {
+                    if (hover_body)
+                        hover_body.SetSpotlightActive(false);
+                    hover_body = hitBody;
+                    hover_body.SetSpotlightActive(true);
                 }
             }
         }
+        if (!hovering && hover_body) {
+            hover_body.SetSpotlightActive(false);
+            hover_body = null;
+        }
+        // Raycast Child Selection
+        if (mouseDownTarget != null && Input.GetMouseButtonUp(0)) {
+            if (hitLineupBody.transform != null) {
+                if (mouseDownTarget == GetBody(hitLineupBody.transform)) {
+                    SelectChild(mouseDownTarget);
+                }
+            }
+            mouseDownTarget = null;
+        }
         if (Input.GetMouseButtonDown(0)) {
-            Vector2 clickPoint = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-            RaycastHit2D hit = Physics2D.Raycast(clickPoint, Vector2.zero, Mathf.Infinity, LayerMask.NameToLayer("lineup"));
-            if (hit.transform != null) {
-                mouseDownTarget = hit.transform.GetComponentInParent<Face>();
+            if (hitLineupBody.transform != null) {
+                mouseDownTarget = GetBody(hitLineupBody.transform);
+                if (mouseDownTarget == cur_body || mouseDownTarget == original_body)
+                    mouseDownTarget = null;
             }
         }
     }
 
 
     /* LINEUP PROCEDURES */
-    void BuildLineup (Face parent) {
+    void BuildLineup (Body parent) {
         int numChildren = Mathf.Min(maxLineupCount, (int)(startingLineupCount + generation * lineupIncrementation));
         BuildLineup(parent, numChildren);
     }
-    void BuildLineup (Face parent, int numChildren) {
+    void BuildLineup (Body parent, int numChildren) {
         // Setup positioning
         float localLineupWidth = lineupWidth / lineupWrapper.transform.localScale.x;
         float splitWidth = localLineupWidth / numChildren;
         float firstPosition = (splitWidth - localLineupWidth) / 2;
         // Generate and place children
         for(int i=0; i<numChildren; i++) {
-            Face face = gen.GenerateRandomFaceFromParent(parent);
-            face.transform.SetParent(lineupWrapper, false);
-            face.transform.localPosition += (firstPosition + (i * splitWidth)) * Vector3.right;
+            Body body = gen.GenerateRandomBodyFromParent(parent);
+            body.transform.SetParent(lineupWrapper, false);
+            body.transform.localPosition += (firstPosition + (i * splitWidth)) * Vector3.right;
         }
     }
     void ClearLineup () {
         // TEMPORARY IMPLEMENTATION (NEEDS ANIMATION)
-        Face[] children = lineupWrapper.GetComponentsInChildren<Face>();
-        foreach (Face f in children)
-            DestroyImmediate(f.gameObject);
+        Body[] children = lineupWrapper.GetComponentsInChildren<Body>();
+        foreach (Body b in children)
+            DestroyImmediate(b.gameObject);
     }
 
-    void SelectChild (Face child) {
+    void SelectChild (Body child) {
+        // REMOVE HOVERING BEFORE MODIFYING ANYTHING
+        if (hover_body) {
+            hover_body.SetSpotlightActive(false);
+            hover_body = null;
+        }
+
         // TEMPORARY IMPLEMENTATION
-        if (cur_face == null)
-            original_face.gameObject.SetActive(false);
+        if (cur_body == null)
+            original_body.gameObject.SetActive(false);
         else
-            DestroyImmediate(cur_face.gameObject);
-        cur_face = child;
+            DestroyImmediate(cur_body.gameObject);
+        cur_body = child;
         child.transform.SetParent(originalWrapper, false);
         child.transform.localPosition = Vector3.zero;
         ClearLineup();
         generation++;
-        BuildLineup(cur_face);
+        BuildLineup(cur_body);
 
         // TEMPORARY TRIGGER
-        float similarity = FaceSimilarity(original_face, cur_face);
+        float similarity = FaceSimilarity(original_body.GetFace(), cur_body.GetFace());
         SetPercentageDisplay(similarity);
 
         if((similarity - similarityThreshold) <= 0.0001) {
@@ -150,24 +176,37 @@ public class GameController : MonoBehaviour {
         // Set game to active
         game_active = true;
         // Generate initial face
-        original_face = gen.GenerateRandomFace();
-        original_face.transform.SetParent(originalWrapper, false);
+        original_body = gen.GenerateRandomBody();
+        original_body.transform.SetParent(originalWrapper, false);
         // BuildLineup
-        BuildLineup(original_face, 3);
+        BuildLineup(original_body);
     }
 
     public void ResetGameState () {
         // Clear game area
         ClearLineup();
-        if (cur_face != null)
-            DestroyImmediate(cur_face.gameObject);
-        DestroyImmediate(original_face.gameObject);
+        if (cur_body != null)
+            DestroyImmediate(cur_body.gameObject);
+        DestroyImmediate(original_body.gameObject);
         // Reset state vars
         game_active = false;
         generation = 0;
-        original_face = null;
-        cur_face = null;
+        original_body = null;
+        cur_body = null;
+        if (hover_body) {
+            hover_body.SetSpotlightActive(false);
+            hover_body = null;
+        }
         // Reset UI
         SetPercentageDisplay(1);
+    }
+
+    
+    /* HELPER METHODS */
+    public Body GetBody (Transform t) {
+        Body b = t.GetComponent<Body>();
+        if (b)
+            return b;
+        return t.GetComponentInParent<Body>();
     }
 }
