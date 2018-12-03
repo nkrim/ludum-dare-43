@@ -50,4 +50,12 @@ public class Body : MonoBehaviour {
     public Face GetFace () {
         return GetComponentInChildren<Face>();
     }
+
+
+    /* CLONE METHODS */
+    public Body Clone () {
+        Body clone = Instantiate(this);
+        clone.SetFace(GetFace().Clone());
+        return clone;
+    }
 }

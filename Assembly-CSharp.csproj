@@ -64,6 +64,8 @@
     <Compile Include="Assets\My Assets\Scripts\Body.cs" />
     <Compile Include="Assets\My Assets\Scripts\Face.cs" />
     <Compile Include="Assets\My Assets\Scripts\GameController.cs" />
+    <Compile Include="Assets\My Assets\Scripts\PhotoDecay.cs" />
+    <Compile Include="Assets\My Assets\Scripts\ProgressBar.cs" />
     <Compile Include="Assets\My Assets\Scripts\RandomFaceGenerator.cs" />
     <Compile Include="Assets\TextMesh Pro\Examples &amp; Extras\Scripts\Benchmark01.cs" />
     <Compile Include="Assets\TextMesh Pro\Examples &amp; Extras\Scripts\Benchmark01_UGUI.cs" />

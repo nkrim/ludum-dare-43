@@ -193,6 +193,10 @@ public class Face : MonoBehaviour {
         res += "}";
         Debug.Log(res);
     }
+    /* SHRINKAGE ACCESSOR FUNCTIONS */
+    public List<bool> GetShrunkFeatures() {
+        return shrunkFeatures;
+    }
 
 
     /* CLONE METHODS */

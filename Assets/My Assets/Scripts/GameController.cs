@@ -12,15 +12,24 @@ public class GameController : MonoBehaviour {
     public float lineupIncrementation = 0.5f;
     [Header("Formatting/Positioning")]
     public float lineupWidth = 12f;
+    public float lineupHeight = 6f;
+    public int lineupRowMax = 3;
 
     /* REFERENCE VARS */
     RandomFaceGenerator gen;
+    PhotoDecay photoDecay;
+    GameObject startUI;
+    GameObject gameUI;
+    GameObject endUI;
+    ProgressBar similarityBar;
 
     /* WRAPPER REFERENCE VARS */
-    Transform originalWrapper;
+    Transform photoWrapper;
+    Transform parentWrapper;
     Transform lineupWrapper;
     /* WRAPPER REFERENCE NAMES */
-    public static readonly string OriginalWrapperName = "original-wrapper";
+    public static readonly string PhotoWrapperName = "photo-wrapper";
+    public static readonly string ParentWrapperName = "parent-wrapper";
     public static readonly string LineupWrapperName = "lineup-wrapper";
 
     /* INPUT STATE VARS */
@@ -32,6 +41,19 @@ public class GameController : MonoBehaviour {
     Body original_body;
     Body cur_body;
     Body hover_body;
+    /* INTRO/OUTRO VARS */
+    bool intro_active = false;
+    int intro_phase = 0;
+    SpriteRenderer startBackground;
+    float startFade = 1f;
+    float startFadeOutPerSec = 0.5f;
+    SpriteRenderer whiteFlash;
+    float whiteFade = 0f;
+    float whiteFadeOutPerSec = 2.0f;
+    Vector3 parentWrapperPos1 = new Vector3(0, -2f, 0);
+    Vector3 parentWrapperScale1 = new Vector3(1, 1, 1);
+    Vector3 parentWrapperPos2;
+    Vector3 parentWrapperScale2;
 
     /* PERSISTENT GAME STATE VARS */
     int highScore = 0;
@@ -43,54 +65,126 @@ public class GameController : MonoBehaviour {
         if (gen == null)
             Debug.LogError("GameController needs a RandomFaceGenerator component");
         // Link placement wrappers
-        originalWrapper = transform.Find(OriginalWrapperName);
+        photoWrapper = transform.Find(PhotoWrapperName);
+        parentWrapper = transform.Find(ParentWrapperName);
         lineupWrapper = transform.Find(LineupWrapperName);
-        if (originalWrapper == null || lineupWrapper == null)
+        if (parentWrapper == null || lineupWrapper == null)
             Debug.LogError("GameController is missing one or more internal wrappers");
+        // Link photo decay
+        photoDecay = photoWrapper.GetComponent<PhotoDecay>();
+        // Link UIs
+        startUI = GameObject.FindWithTag("start-UI");
+        similarityBar = GameObject.FindWithTag("similarity-bar").GetComponent<ProgressBar>();
+        gameUI = GameObject.FindWithTag("game-UI");
+        gameUI.SetActive(false);
+        endUI = GameObject.FindWithTag("end-UI");
+        endUI.SetActive(false);
+        // Link intro/outro pieces
+        startBackground = GameObject.FindWithTag("start-background").GetComponent<SpriteRenderer>();
+        whiteFlash = GameObject.FindWithTag("white-flash").GetComponent<SpriteRenderer>();
+        parentWrapperPos2 = parentWrapper.localPosition;
+        parentWrapperScale2 = parentWrapper.localScale;
 	}
 
     void Start () {
-        StartGame();
+        
     }
 
     private void Update () {
-        if (!game_active)
+        /* PREQUEL PHASE */
+        if (!game_active && !intro_active) {
+            if(Input.GetMouseButtonUp(0)) {
+                startUI.SetActive(false);
+                endUI.SetActive(false);
+                StartIntro();
+            }
             return;
-        /* INPUT HANDLING */
-        Vector2 clickPoint = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-        RaycastHit2D hitLineupBody = Physics2D.Raycast(clickPoint, Vector2.zero, Mathf.Infinity, LayerMask.NameToLayer("lineup"));
-        // Raycast hover focus
-        bool hovering = false;
-        if (hitLineupBody.transform) {
-            Body hitBody = GetBody(hitLineupBody.transform);
-            if (hitBody && hitBody != cur_body && hitBody != original_body) {
-                hovering = true;
-                if (hitBody != hover_body) {
-                    if (hover_body)
-                        hover_body.SetFocusState(false);
-                    hover_body = hitBody;
-                    hover_body.SetFocusState(true);
+        }
+
+        /* INTRO PHASE */
+        if (intro_active) {
+            switch (intro_phase) {
+                case 0: // FADE START BG OUT
+                    if (startFade > 0) {
+                        startFade -= Time.deltaTime * startFadeOutPerSec;
+                        startBackground.color = new Color(1, 1, 1, Mathf.Max(0, startFade));
+                        Debug.Log("FADING OUT START: " + startFade);
+                    }
+                    else {
+                        startFade = 0;
+                        intro_phase++;
+                        Debug.Log("START FADED OUT");
+                    }
+                    break;
+                case 1: // FLASH (AND INIT GAME STATE)
+                    whiteFade = 1;
+                    whiteFlash.color = new Color(1, 1, 1, 1);
+                    intro_phase++;
+                    parentWrapper.localPosition = parentWrapperPos2;
+                    parentWrapper.localScale = parentWrapperScale2;
+                    photoDecay.gameObject.SetActive(true);
+                    photoDecay.SetBody(original_body);
+                    gameUI.SetActive(true);
+                    break;
+                case 2: // FADE OUT FLASH
+                    if (whiteFade > 0) {
+                        whiteFade -= Time.deltaTime * whiteFadeOutPerSec;
+                        whiteFlash.color = new Color(1, 1, 1, Mathf.Max(0, whiteFade));
+                    }
+                    else {
+                        whiteFade = 0;
+                        intro_phase++;
+                    }
+                    break;
+                case 3:
+                    StartGame();
+                    intro_active = false;
+                    break;
+                default:
+                    break;
+            }
+            return;
+        }
+
+        /* GAME PHASE */
+        if (game_active) {
+            /* INPUT HANDLING */
+            Vector2 clickPoint = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+            RaycastHit2D hitLineupBody = Physics2D.Raycast(clickPoint, Vector2.zero, Mathf.Infinity, LayerMask.NameToLayer("lineup"));
+            // Raycast hover focus
+            bool hovering = false;
+            if (hitLineupBody.transform) {
+                Body hitBody = GetBody(hitLineupBody.transform);
+                if (hitBody && hitBody != cur_body && hitBody != original_body && hitBody != photoDecay.GetBody()) {
+                    hovering = true;
+                    if (hitBody != hover_body) {
+                        if (hover_body)
+                            hover_body.SetFocusState(false);
+                        hover_body = hitBody;
+                        hover_body.SetFocusState(true);
+                    }
                 }
             }
-        }
-        if (!hovering && hover_body) {
-            hover_body.SetFocusState(false);
-            hover_body = null;
-        }
-        // Raycast Child Selection
-        if (mouseDownTarget != null && Input.GetMouseButtonUp(0)) {
-            if (hitLineupBody.transform != null) {
-                if (mouseDownTarget == GetBody(hitLineupBody.transform)) {
-                    SelectChild(mouseDownTarget);
-                }
+            if (!hovering && hover_body) {
+                hover_body.SetFocusState(false);
+                hover_body = null;
             }
-            mouseDownTarget = null;
-        }
-        if (Input.GetMouseButtonDown(0)) {
-            if (hitLineupBody.transform != null) {
-                mouseDownTarget = GetBody(hitLineupBody.transform);
-                if (mouseDownTarget == cur_body || mouseDownTarget == original_body)
-                    mouseDownTarget = null;
+            // Raycast Child Selection
+            if (mouseDownTarget != null && Input.GetMouseButtonUp(0)) {
+                if (hitLineupBody.transform != null) {
+                    Body hitBody = GetBody(hitLineupBody.transform);
+                    if (mouseDownTarget == GetBody(hitLineupBody.transform) && hitBody != cur_body && hitBody != original_body && hitBody != photoDecay.GetBody()) {
+                        SelectChild(mouseDownTarget);
+                    }
+                }
+                mouseDownTarget = null;
+            }
+            if (Input.GetMouseButtonDown(0)) {
+                if (hitLineupBody.transform != null) {
+                    mouseDownTarget = GetBody(hitLineupBody.transform);
+                    if (mouseDownTarget == cur_body || mouseDownTarget == original_body)
+                        mouseDownTarget = null;
+                }
             }
         }
     }
@@ -133,10 +227,11 @@ public class GameController : MonoBehaviour {
         else
             DestroyImmediate(cur_body.gameObject);
         cur_body = child;
-        child.transform.SetParent(originalWrapper, false);
+        child.transform.SetParent(parentWrapper, false);
         child.transform.localPosition = Vector3.zero;
         ClearLineup();
         generation++;
+        photoDecay.AdvanceDecay();
         BuildLineup(cur_body);
 
         // TEMPORARY TRIGGER
@@ -145,29 +240,38 @@ public class GameController : MonoBehaviour {
 
         if((similarity - similarityThreshold) <= 0.0001) {
             ResetGameState();
-            StartGame();
         }
     }
 
 
     /* FACE COMPARISON */
     float FaceSimilarity (Face face1, Face face2) {
+        int num_equal = 0;
+        // Indices comparison
         List<int> face1_indices = face1.GetIndices();
         List<int> face2_indices = face2.GetIndices();
-        int length = Mathf.Min(face1_indices.Count, face2_indices.Count);
-        int num_equal = 0;
-        for (int i = 0; i < length; i++) {
+        int length_indices = Mathf.Min(face1_indices.Count, face2_indices.Count);
+        for (int i = 0; i < length_indices; i++) {
             if (face1_indices[i] == face2_indices[i])
                 num_equal++;
         }
-        return (float)num_equal / length;
+        // Shrinkage comparison
+        List<bool> face1_shrinkage = face1.GetShrunkFeatures();
+        List<bool> face2_shrinkage = face2.GetShrunkFeatures();
+        int length_shrinkage = Mathf.Min(face1_shrinkage.Count, face2_shrinkage.Count);
+        for (int i = 0; i < length_shrinkage; i++) {
+            if (face1_shrinkage[i] == face2_shrinkage[i])
+                num_equal++;
+        }
+        return (float)num_equal / (length_indices + length_shrinkage);
     }
 
 
     /* UI CONTROL */
     void SetPercentageDisplay (float x) {
-        var percentageDisplay = GameObject.FindWithTag("UI").transform.Find("percentage-display").GetComponent<TMPro.TextMeshProUGUI>();
-        percentageDisplay.text = string.Format("{0:0.0%}", x);
+        //var percentageDisplay = gameUI.transform.Find("percentage-display").GetComponent<TMPro.TextMeshProUGUI>();
+        //percentageDisplay.text = string.Format("{0:0.0%}", x);
+        similarityBar.UpdateProgress(x);
     }
 
 
@@ -176,18 +280,30 @@ public class GameController : MonoBehaviour {
         // Set game to active
         game_active = true;
         // Generate initial face
-        original_body = gen.GenerateRandomBody();
-        original_body.transform.SetParent(originalWrapper, false);
+        //original_body = gen.GenerateRandomBody();
+        //original_body.transform.SetParent(parentWrapper, false);
+        //photoDecay.SetBody(original_body);
         // BuildLineup
         BuildLineup(original_body);
     }
 
     public void ResetGameState () {
+        game_active = false;
+        // Set high score
+        highScore = Mathf.Max(highScore, generation);
         // Clear game area
         ClearLineup();
         if (cur_body != null)
             DestroyImmediate(cur_body.gameObject);
         DestroyImmediate(original_body.gameObject);
+        // Setup end game screen
+        endUI.SetActive(true);
+        endUI.GetComponentInChildren<TMPro.TextMeshProUGUI>().text = "Your descendents have no more resemblance to you, it's over.\n\nYou were able to keep your face alive for:\n"
+            + generation + " generations\n\nThe longest you've gone is:\n"
+            + highScore + " generations\n\n"
+            + "Click to try again.";
+        startBackground.color = Color.white;
+        startFade = 1;
         // Reset state vars
         game_active = false;
         generation = 0;
@@ -198,10 +314,22 @@ public class GameController : MonoBehaviour {
             hover_body = null;
         }
         // Reset UI
+        photoDecay.Reset();
+        photoDecay.gameObject.SetActive(false);
         SetPercentageDisplay(1);
+        gameUI.SetActive(false);
     }
 
-    
+    public void StartIntro () {
+        intro_active = true;
+        intro_phase = 0;
+        // Generate initial face
+        original_body = gen.GenerateRandomBody();
+        original_body.transform.SetParent(parentWrapper, false);
+        parentWrapper.localPosition = parentWrapperPos1;
+        parentWrapper.localScale = parentWrapperScale1;
+    }
+
     /* HELPER METHODS */
     public Body GetBody (Transform t) {
         Body b = t.GetComponent<Body>();
